@@ -1,0 +1,64 @@
+[package]
+name = "silentbell_p2p"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+# Core crate — for keypairs, identity, vault types
+silentbell_core = { path = "../core" }
+
+# libp2p — modular peer-to-peer networking
+# We pull in only the sub-protocols we actually need:
+#   - noise:     transport encryption (Noise XX handshake)
+#   - tcp:       TCP transport
+#   - yamux:     stream multiplexer
+#   - kad:       Kademlia DHT (peer discovery + record storage)
+#   - identify:  peer identity exchange
+#   - dns:       DNS resolution for bootstrap peers
+libp2p = { version = "0.54", features = [
+    "noise",
+    "tcp",
+    "yamux",
+    "kad",
+    "identify",
+    "dns",
+    "macros",
+    "tokio",
+] }
+
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+
+# Logging
+log = "0.4"
+
+# Serialization for message payloads
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# SHA-256 for Queue ID derivation
+sha2 = "0.10"
+
+# Base58 for readable Queue IDs
+bs58 = "0.5"
+
+# Futures — needed for Swarm's StreamExt
+futures = "0.3"
+
+# CoAP message formatting — used by the doorbell sender/receiver to construct
+# lightweight UDP-based REST requests (CoAP = "Constrained Application Protocol")
+coap-lite = "0.11"
+
+# HTTP client — used by the doorbell sender to POST wake-up pings to
+# UnifiedPush gateway endpoints. Minimal features: only JSON + default TLS.
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# CSPRNG — for generating random nonces in doorbell pings
+rand_core = { version = "0.6", features = ["getrandom"] }
+
+[dev-dependencies]
+# Needed by messaging integration tests to generate Ed25519 identity keys
+ed25519-dalek = { version = "2", features = ["rand_core"] }

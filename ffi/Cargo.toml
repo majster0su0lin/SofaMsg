@@ -1,0 +1,36 @@
+[package]
+name = "silentbell_ffi"
+version = "0.1.0"
+edition = "2021"
+description = "UniFFI bridge — exposes SilentBell/SofaMsg core to Kotlin/Swift via Mozilla UniFFI"
+
+[lib]
+# cdylib → produces the .so that Android loads via System.loadLibrary()
+# lib    → lets `uniffi-bindgen` (and unit tests) link against regular rlib
+crate-type = ["cdylib", "lib"]
+name = "silentbell_ffi"
+
+[dependencies]
+# ── Workspace crates ──
+silentbell_core = { path = "../core" }
+silentbell_p2p  = { path = "../p2p" }
+
+# ── UniFFI runtime ──
+# The runtime is linked into the cdylib and provides the scaffolding
+# that foreign-language bindings call into.
+uniffi = { version = "0.28", features = ["cli"] }
+
+# ── Hex encoding for public keys ──
+hex = "0.4"
+
+# ── Error derive macro ──
+thiserror = "1"
+
+# ── SQLite (for Connection type in FfiDatabase) ──
+rusqlite = { version = "0.31", features = ["sqlcipher"] }
+
+[build-dependencies]
+# UniFFI build-time code generator — reads the .udl file and emits
+# Rust scaffolding that connects our #[uniffi::export] impls to the
+# C ABI entry points.
+uniffi = { version = "0.28", features = ["build"] }

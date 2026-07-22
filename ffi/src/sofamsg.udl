@@ -1,0 +1,140 @@
+// SofaMsg / SilentBell — UniFFI interface definition
+
+namespace sofamsg {
+    // Create a brand-new identity (keypair + account ID) in one call.
+    IdentityResult create_new_identity();
+
+    // Encrypt plaintext bytes with the given vault key.
+    [Throws=SofaMsgError]
+    bytes vault_encrypt(FfiVaultKey key, bytes plaintext);
+
+    // Decrypt a blob previously produced by vault_encrypt.
+    [Throws=SofaMsgError]
+    bytes vault_decrypt(FfiVaultKey key, bytes blob);
+
+    // Generate deterministic decoy conversations from a 32-byte seed.
+    [Throws=SofaMsgError]
+    sequence<FfiDecoyConversation> generate_decoy_conversations(bytes seed);
+
+    // Derive Queue ID from public key bytes.
+    [Throws=SofaMsgError]
+    string derive_queue_id(bytes public_key_bytes);
+
+    // Invites
+    [Throws=SofaMsgError]
+    FfiInvitePayload create_invite(bytes public_key_bytes, bytes queue_id_bytes, string? display_name);
+
+    [Throws=SofaMsgError]
+    string invite_to_uri(FfiInvitePayload invite);
+
+    [Throws=SofaMsgError]
+    FfiInvitePayload invite_from_uri(string uri);
+
+    [Throws=SofaMsgError]
+    bytes invite_to_qr_data(FfiInvitePayload invite);
+
+    [Throws=SofaMsgError]
+    FfiInvitePayload invite_from_qr_data(bytes data);
+
+    [Throws=SofaMsgError]
+    boolean invite_validate(FfiInvitePayload invite);
+};
+
+// -- Identity --------------------------------------------------------
+
+dictionary IdentityResult {
+    string account_id;
+    string public_key_hex;
+};
+
+interface FfiKeypair {
+    [Name=generate]
+    constructor();
+
+    string public_key_hex();
+    string account_id();
+};
+
+// -- Vault (PIN-derived encryption) ----------------------------------
+
+interface FfiVaultKey {
+    [Name=derive, Throws=SofaMsgError]
+    constructor(string pin, bytes salt);
+
+    string as_hex();
+};
+
+// -- Storage (SQLCipher) ---------------------------------------------
+
+dictionary FfiStoredMessage {
+    i64 id;
+    string peer_account_id;
+    string body;
+    i64 sent_at;
+    boolean is_outgoing;
+};
+
+interface FfiDatabase {
+    [Name=open, Throws=SofaMsgError]
+    constructor(string path, FfiVaultKey key);
+
+    [Throws=SofaMsgError]
+    void ensure_schema();
+
+    [Throws=SofaMsgError]
+    i64 insert_message(string peer_account_id, string body, i64 sent_at, boolean is_outgoing);
+
+    [Throws=SofaMsgError]
+    sequence<FfiStoredMessage> get_messages(string peer_account_id);
+
+    [Throws=SofaMsgError]
+    sequence<FfiStoredMessage> get_recent_conversations(u32 limit);
+
+    [Throws=SofaMsgError]
+    boolean delete_message(i64 message_id);
+
+    [Throws=SofaMsgError]
+    u32 pad_chaff(string db_path);
+
+    [Throws=SofaMsgError]
+    u32 chaff_count();
+};
+
+// -- Decoy content ---------------------------------------------------
+
+dictionary FfiDecoyMessage {
+    string body;
+    boolean is_outgoing;
+    u64 seconds_ago;
+};
+
+dictionary FfiDecoyConversation {
+    string peer_account_id;
+    string peer_name;
+    sequence<FfiDecoyMessage> messages;
+};
+
+// -- Invitations -----------------------------------------------------
+
+dictionary FfiInvitePayload {
+    string account_id;
+    string public_key_b58;
+    string queue_id_b58;
+    string? display_name;
+    u8 version;
+};
+
+// -- Error type ------------------------------------------------------
+
+[Error]
+enum SofaMsgError {
+    "InvalidSaltLength",
+    "InvalidSeedLength",
+    "InvalidKeyLength",
+    "VaultEncryptionFailed",
+    "VaultDecryptionFailed",
+    "DatabaseOpenFailed",
+    "DatabaseSchemaFailed",
+    "DatabaseOperationFailed",
+    "InviteFailed",
+};

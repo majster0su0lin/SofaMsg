@@ -7,6 +7,12 @@ type Aes256CbcDec = cbc::Decryptor<Aes256>;
 
 pub struct VaultKey([u8; 32]);
 
+impl VaultKey {
+    pub fn as_hex(&self) -> String {
+        self.0.iter().map(|b| format!("{b:02x}")).collect()
+    }
+}
+
 pub fn derive_key(pin: &str, salt: &[u8; 16]) -> VaultKey {
     let argon2 = Argon2::default();
     let mut output = [0u8; 32];

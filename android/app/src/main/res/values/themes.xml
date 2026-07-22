@@ -1,0 +1,6 @@
+<resources>
+    <!-- Base theme — inherits from Material 3 DynamicColor dark theme.
+         Falls back to Theme.Material3.DayNight.NoActionBar on devices
+         without dynamic color support (pre-Android 12). -->
+    <style name="Theme.SofaMsg" parent="Theme.Material3.DayNight.NoActionBar" />
+</resources>

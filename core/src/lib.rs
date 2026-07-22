@@ -1,29 +1,25 @@
-mod keys;
-mod identity;
-mod vault;
-mod storage;
 mod decoy;
-pub mod invite;
 pub mod e2e;
+mod identity;
+pub mod invite;
+mod keys;
+mod storage;
+mod vault;
 
-pub use keys::Keypair;
-pub use identity::derive_account_id;
-pub use vault::{decrypt, derive_key, encrypt, VaultKey};
-pub use e2e::{
-    PreKeyBundle, X3dhInitiatorOutput, X3dhResponderOutput,
-    SignedPreKey, OneTimePreKey,
-    generate_signed_prekey, generate_one_time_prekey,
-    initiate_x3dh, respond_x3dh,
-    RatchetState, MessageHeader, EncryptedMessage,
-    Session, SessionManager,
-};
-pub use storage::{
-    ensure_schema, open_encrypted_db,
-    StoredMessage, insert_message, get_messages, get_recent_conversations, delete_message,
-    pad_chaff, chaff_count, clear_chaff,
-};
 pub use decoy::{generate_decoy_content, DecoyConversation, DecoyMessage};
-pub use invite::{InvitePayload, InviteError};
+pub use e2e::{
+    generate_one_time_prekey, generate_signed_prekey, initiate_x3dh, respond_x3dh,
+    EncryptedMessage, MessageHeader, OneTimePreKey, PreKeyBundle, RatchetState, Session,
+    SessionManager, SignedPreKey, X3dhInitiatorOutput, X3dhResponderOutput,
+};
+pub use identity::derive_account_id;
+pub use invite::{InviteError, InvitePayload};
+pub use keys::Keypair;
+pub use storage::{
+    chaff_count, clear_chaff, delete_message, ensure_schema, get_messages,
+    get_recent_conversations, insert_message, open_encrypted_db, pad_chaff, StoredMessage,
+};
+pub use vault::{decrypt, derive_key, encrypt, VaultKey};
 
 pub fn create_new_identity() -> (Keypair, String) {
     let keypair = Keypair::generate();

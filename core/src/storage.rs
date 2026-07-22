@@ -1,5 +1,5 @@
-use rusqlite::Connection;
 use rand_core::{OsRng, RngCore};
+use rusqlite::Connection;
 
 /// A message as stored in the local encrypted database.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,9 +72,7 @@ const CHAFF_BLOCK_SIZE: usize = 4096;
 /// The chaff data is random bytes (from the OS CSPRNG), so it's
 /// indistinguishable from encrypted content to anyone without the key.
 pub fn pad_chaff(conn: &Connection, db_path: &str) -> rusqlite::Result<u32> {
-    let current_size = std::fs::metadata(db_path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let current_size = std::fs::metadata(db_path).map(|m| m.len()).unwrap_or(0);
 
     if current_size >= TARGET_DB_SIZE_BYTES {
         return Ok(0);

@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 //! SofaMsg / SilentBell — UniFFI FFI layer
 //!
 //! This crate is the bridge between the Rust core library and the
@@ -115,18 +117,12 @@ impl FfiVaultKey {
 }
 
 /// Encrypt plaintext with the given vault key.
-pub fn vault_encrypt(
-    key: Arc<FfiVaultKey>,
-    plaintext: Vec<u8>,
-) -> Result<Vec<u8>, SofaMsgError> {
+pub fn vault_encrypt(key: Arc<FfiVaultKey>, plaintext: Vec<u8>) -> Result<Vec<u8>, SofaMsgError> {
     Ok(silentbell_core::encrypt(&key.inner, &plaintext))
 }
 
 /// Decrypt a blob produced by `vault_encrypt`.
-pub fn vault_decrypt(
-    key: Arc<FfiVaultKey>,
-    blob: Vec<u8>,
-) -> Result<Vec<u8>, SofaMsgError> {
+pub fn vault_decrypt(key: Arc<FfiVaultKey>, blob: Vec<u8>) -> Result<Vec<u8>, SofaMsgError> {
     Ok(silentbell_core::decrypt(&key.inner, &blob))
 }
 
@@ -152,14 +148,15 @@ impl FfiDatabase {
     pub fn open(path: String, key: Arc<FfiVaultKey>) -> Result<Self, SofaMsgError> {
         let conn = silentbell_core::open_encrypted_db(&path, &key.inner)
             .map_err(|_| SofaMsgError::DatabaseOpenFailed)?;
-        Ok(FfiDatabase { conn: std::sync::Mutex::new(conn) })
+        Ok(FfiDatabase {
+            conn: std::sync::Mutex::new(conn),
+        })
     }
 
     /// Create tables if they do not exist.
     pub fn ensure_schema(&self) -> Result<(), SofaMsgError> {
         let conn = self.conn.lock().expect("database mutex poisoned");
-        silentbell_core::ensure_schema(&conn)
-            .map_err(|_| SofaMsgError::DatabaseSchemaFailed)
+        silentbell_core::ensure_schema(&conn).map_err(|_| SofaMsgError::DatabaseSchemaFailed)
     }
 
     /// Insert a message into the encrypted database.
@@ -234,8 +231,7 @@ impl FfiDatabase {
     /// Count current chaff blocks.
     pub fn chaff_count(&self) -> Result<u32, SofaMsgError> {
         let conn = self.conn.lock().expect("database mutex poisoned");
-        silentbell_core::chaff_count(&conn)
-            .map_err(|_| SofaMsgError::DatabaseOperationFailed)
+        silentbell_core::chaff_count(&conn).map_err(|_| SofaMsgError::DatabaseOperationFailed)
     }
 }
 
@@ -446,7 +442,9 @@ mod tests {
         let db = FfiDatabase::open(path.clone(), key).unwrap();
         db.ensure_schema().unwrap();
 
-        let id = db.insert_message("sb_peer1".into(), "hello FFI".into(), 1000, true).unwrap();
+        let id = db
+            .insert_message("sb_peer1".into(), "hello FFI".into(), 1000, true)
+            .unwrap();
         assert_eq!(id, 1);
 
         let msgs = db.get_messages("sb_peer1".into()).unwrap();
@@ -481,7 +479,8 @@ mod tests {
             queue_id_b58: invite.queue_id_b58.clone(),
             display_name: invite.display_name.clone(),
             version: invite.version,
-        }).unwrap());
+        })
+        .unwrap());
 
         let uri = invite_to_uri(FfiInvitePayload {
             account_id: invite.account_id.clone(),
@@ -489,7 +488,8 @@ mod tests {
             queue_id_b58: invite.queue_id_b58.clone(),
             display_name: invite.display_name.clone(),
             version: invite.version,
-        }).unwrap();
+        })
+        .unwrap();
         assert!(uri.starts_with("sofamsg://connect?"));
 
         let parsed = invite_from_uri(uri).unwrap();

@@ -27,11 +27,11 @@
 //! birational map between the two curves — this is a standard, well-understood
 //! conversion (used by Signal, libsodium, etc.).
 
-use ed25519_dalek::{SigningKey, VerifyingKey, Signer, Verifier, Signature};
-use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret as X25519StaticSecret};
-use sha2::Sha256;
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use hkdf::Hkdf;
 use rand_core::OsRng;
+use sha2::Sha256;
+use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret as X25519StaticSecret};
 
 /// The "info" string for HKDF when deriving the shared secret from DH outputs.
 /// Using a unique, application-specific info string prevents cross-protocol attacks.
@@ -113,7 +113,7 @@ pub struct X3dhResponderOutput {
 /// The private scalar is the same in both cases — we just need to extract
 /// it from Ed25519's expanded key format.
 pub fn ed25519_signing_key_to_x25519(signing_key: &SigningKey) -> X25519StaticSecret {
-    use sha2::{Sha512, Digest};
+    use sha2::{Digest, Sha512};
     let expanded = Sha512::digest(signing_key.as_bytes());
     let mut x25519_bytes = [0u8; 32];
     x25519_bytes.copy_from_slice(&expanded[..32]);
@@ -156,7 +156,11 @@ pub fn generate_signed_prekey(identity_signing_key: &SigningKey) -> SignedPreKey
     let secret = X25519StaticSecret::random_from_rng(OsRng);
     let public = X25519PublicKey::from(&secret);
     let signature = identity_signing_key.sign(public.as_bytes());
-    SignedPreKey { secret, public, signature }
+    SignedPreKey {
+        secret,
+        public,
+        signature,
+    }
 }
 
 /// Generate a new one-time pre-key (no signature needed — they're bound
@@ -275,7 +279,9 @@ pub fn respond_x3dh(
     // DH1: their identity ↔ our signed pre-key
     //   Alice computed: DH(IK_A_secret, SPK_B_public)
     //   Bob computes:   DH(SPK_B_secret, IK_A_public)  ← same shared secret
-    let dh1 = our_signed_prekey.secret.diffie_hellman(&their_x25519_identity);
+    let dh1 = our_signed_prekey
+        .secret
+        .diffie_hellman(&their_x25519_identity);
 
     // DH2: their ephemeral ↔ our identity
     let dh2 = our_x25519_secret.diffie_hellman(their_ephemeral_key);
@@ -312,7 +318,12 @@ mod tests {
     /// Helper: create a full identity + pre-key bundle for testing.
     fn make_test_bundle(
         with_opk: bool,
-    ) -> (SigningKey, SignedPreKey, Option<OneTimePreKey>, PreKeyBundle) {
+    ) -> (
+        SigningKey,
+        SignedPreKey,
+        Option<OneTimePreKey>,
+        PreKeyBundle,
+    ) {
         let signing_key = SigningKey::generate(&mut OsRng);
         let spk = generate_signed_prekey(&signing_key);
         let opk = if with_opk {
@@ -337,8 +348,8 @@ mod tests {
         let alice_signing = SigningKey::generate(&mut OsRng);
         let (bob_signing, bob_spk, bob_opk, bob_bundle) = make_test_bundle(true);
 
-        let alice_output = initiate_x3dh(&alice_signing, &bob_bundle)
-            .expect("X3DH initiation should succeed");
+        let alice_output =
+            initiate_x3dh(&alice_signing, &bob_bundle).expect("X3DH initiation should succeed");
 
         let bob_output = respond_x3dh(
             &bob_signing,
@@ -360,8 +371,8 @@ mod tests {
         let alice_signing = SigningKey::generate(&mut OsRng);
         let (bob_signing, bob_spk, _, bob_bundle) = make_test_bundle(false);
 
-        let alice_output = initiate_x3dh(&alice_signing, &bob_bundle)
-            .expect("X3DH initiation should succeed");
+        let alice_output =
+            initiate_x3dh(&alice_signing, &bob_bundle).expect("X3DH initiation should succeed");
 
         let bob_output = respond_x3dh(
             &bob_signing,

@@ -23,8 +23,7 @@
 ///
 /// 4. **Realistic timestamps** — messages spread over the last 1–7
 ///    days with natural gaps (not perfectly evenly spaced).
-
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 /// A single decoy message.
 #[derive(Debug, Clone)]
@@ -65,7 +64,9 @@ impl SeededRng {
         let mut buf = [0u8; 8];
         buf.copy_from_slice(&hash[..8]);
         let mut state = u64::from_le_bytes(buf);
-        if state == 0 { state = 1; } // xorshift needs non-zero state
+        if state == 0 {
+            state = 1;
+        } // xorshift needs non-zero state
         SeededRng { state }
     }
 
@@ -93,8 +94,7 @@ impl SeededRng {
 // ── Corpus of mundane conversation snippets ─────────────────
 
 const PEER_FIRST_NAMES: &[&str] = &[
-    "Jamie", "Alex", "Sam", "Jordan", "Taylor",
-    "Morgan", "Casey", "Riley", "Avery", "Quinn",
+    "Jamie", "Alex", "Sam", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Avery", "Quinn",
     "Drew", "Sage", "Blake", "Hayden", "Rowan",
 ];
 
@@ -114,7 +114,10 @@ const SCRIPTS: &[&[(&str, bool)]] = &[
     // Script 1: weekend plans
     &[
         ("What are you up to this weekend?", false),
-        ("Probably going to the farmers market Saturday morning", true),
+        (
+            "Probably going to the farmers market Saturday morning",
+            true,
+        ),
         ("Oh nice, I heard they have fresh strawberries now", false),
         ("Yeah! Want to come?", true),
         ("I'm in. What time?", false),
@@ -139,7 +142,10 @@ const SCRIPTS: &[&[(&str, bool)]] = &[
     ],
     // Script 4: movie recommendation
     &[
-        ("Have you seen that new movie everyone's talking about?", false),
+        (
+            "Have you seen that new movie everyone's talking about?",
+            false,
+        ),
         ("Which one?", true),
         ("The one with the time travel subplot", false),
         ("Not yet, is it good?", true),
@@ -242,7 +248,10 @@ pub fn generate_decoy_content(seed: &[u8; 32]) -> Vec<DecoyConversation> {
             } else {
                 // Previous message's seconds_ago minus the gap
                 // (so timestamps go forward in time)
-                let prev = messages.last().map(|m: &DecoyMessage| m.seconds_ago).unwrap_or(base_seconds_ago);
+                let prev = messages
+                    .last()
+                    .map(|m: &DecoyMessage| m.seconds_ago)
+                    .unwrap_or(base_seconds_ago);
                 prev.saturating_sub(gap)
             };
 
@@ -292,10 +301,7 @@ mod tests {
         let b = generate_decoy_content(&[2u8; 32]);
 
         // At minimum, peer IDs should differ
-        assert_ne!(
-            a[0].peer_account_id,
-            b[0].peer_account_id,
-        );
+        assert_ne!(a[0].peer_account_id, b[0].peer_account_id,);
     }
 
     #[test]
@@ -303,8 +309,11 @@ mod tests {
         // Test several seeds to check range
         for seed_byte in 0u8..20 {
             let content = generate_decoy_content(&[seed_byte; 32]);
-            assert!(content.len() >= 3 && content.len() <= 5,
-                "Expected 3-5 conversations, got {}", content.len());
+            assert!(
+                content.len() >= 3 && content.len() <= 5,
+                "Expected 3-5 conversations, got {}",
+                content.len()
+            );
         }
     }
 
@@ -312,8 +321,11 @@ mod tests {
     fn all_peer_ids_start_with_prefix() {
         let content = generate_decoy_content(&[99u8; 32]);
         for convo in &content {
-            assert!(convo.peer_account_id.starts_with("sb_"),
-                "Peer ID should start with sb_, got: {}", convo.peer_account_id);
+            assert!(
+                convo.peer_account_id.starts_with("sb_"),
+                "Peer ID should start with sb_, got: {}",
+                convo.peer_account_id
+            );
         }
     }
 
@@ -322,8 +334,10 @@ mod tests {
         let content = generate_decoy_content(&[77u8; 32]);
         for convo in &content {
             for window in convo.messages.windows(2) {
-                assert!(window[0].seconds_ago >= window[1].seconds_ago,
-                    "Messages should be in chronological order (decreasing seconds_ago)");
+                assert!(
+                    window[0].seconds_ago >= window[1].seconds_ago,
+                    "Messages should be in chronological order (decreasing seconds_ago)"
+                );
             }
         }
     }
@@ -332,7 +346,10 @@ mod tests {
     fn messages_have_plausible_content() {
         let content = generate_decoy_content(&[55u8; 32]);
         for convo in &content {
-            assert!(!convo.messages.is_empty(), "Conversations should have messages");
+            assert!(
+                !convo.messages.is_empty(),
+                "Conversations should have messages"
+            );
             assert!(convo.messages.len() >= 4, "Should have at least 4 messages");
             for msg in &convo.messages {
                 assert!(!msg.body.is_empty(), "Messages should not be empty");

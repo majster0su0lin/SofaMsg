@@ -25,7 +25,6 @@
 /// 3. B's OS wakes the app for a bounded window
 /// 4. B's app pulls messages from DHT (pull, not push — see README for why)
 /// 5. B processes messages and goes back to sleep
-
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -132,9 +131,7 @@ impl DoorbellPing {
             .to_string();
 
         if queue_id.is_empty() {
-            return Err(DoorbellError::MalformedPing(
-                "empty queue ID".into(),
-            ));
+            return Err(DoorbellError::MalformedPing("empty queue ID".into()));
         }
 
         Ok(DoorbellPing {
@@ -292,10 +289,7 @@ impl DoorbellSender {
     /// # Arguments
     /// * `target_addr` — The recipient's CoAP endpoint (e.g. "192.168.1.5:5683")
     /// * `ping` — The doorbell ping to send
-    pub async fn send_coap(
-        target_addr: &str,
-        ping: &DoorbellPing,
-    ) -> Result<(), DoorbellError> {
+    pub async fn send_coap(target_addr: &str, ping: &DoorbellPing) -> Result<(), DoorbellError> {
         use coap_lite::{CoapRequest, RequestType};
         use std::net::SocketAddr;
 
@@ -313,7 +307,10 @@ impl DoorbellSender {
 
         // Mark as non-confirmable (Type = 1 in CoAP).
         // CoAP message types: 0=CON, 1=NON, 2=ACK, 3=RST
-        request.message.header.set_type(coap_lite::MessageType::NonConfirmable);
+        request
+            .message
+            .header
+            .set_type(coap_lite::MessageType::NonConfirmable);
 
         // Generate a random message ID for this CoAP request
         let msg_id = (ping.nonce[0] as u16) << 8 | (ping.nonce[1] as u16);
@@ -367,18 +364,13 @@ impl DoorbellSender {
             .body(payload)
             .send()
             .await
-            .map_err(|e| {
-                DoorbellError::UnifiedPushError(format!("HTTP request failed: {e}"))
-            })?;
+            .map_err(|e| DoorbellError::UnifiedPushError(format!("HTTP request failed: {e}")))?;
 
         if !response.status().is_success() {
             return Err(DoorbellError::UnifiedPushError(format!(
                 "push gateway returned HTTP {}: {}",
                 response.status(),
-                response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "<no body>".into())
+                response.text().await.unwrap_or_else(|_| "<no body>".into())
             )));
         }
 
@@ -400,9 +392,7 @@ impl DoorbellSender {
         ping: &DoorbellPing,
     ) -> Result<(), DoorbellError> {
         match endpoint.transport {
-            DoorbellTransport::CoAP => {
-                Self::send_coap(&endpoint.address, ping).await
-            }
+            DoorbellTransport::CoAP => Self::send_coap(&endpoint.address, ping).await,
             DoorbellTransport::UnifiedPush => {
                 Self::send_unified_push(&endpoint.address, ping).await
             }
@@ -450,10 +440,7 @@ impl DoorbellReceiver {
     ///
     /// Returns the validated ping for further processing, or an error
     /// explaining why it was rejected.
-    pub fn process_ping(
-        &mut self,
-        raw_payload: &[u8],
-    ) -> Result<DoorbellPing, DoorbellError> {
+    pub fn process_ping(&mut self, raw_payload: &[u8]) -> Result<DoorbellPing, DoorbellError> {
         let ping = DoorbellPing::from_bytes(raw_payload)?;
 
         // Freshness check: reject pings older than MAX_PING_AGE_SECS
@@ -499,10 +486,7 @@ impl DoorbellReceiver {
     /// The callback should initiate a DHT message pull for the queue ID
     /// in the ping. It receives the validated `DoorbellPing` and should
     /// return quickly — heavy work (DHT queries) should be spawned separately.
-    pub async fn listen_coap<F>(
-        &mut self,
-        callback: F,
-    ) -> Result<(), DoorbellError>
+    pub async fn listen_coap<F>(&mut self, callback: F) -> Result<(), DoorbellError>
     where
         F: Fn(DoorbellPing) + Send + 'static,
     {
@@ -630,7 +614,7 @@ mod tests {
         buf.push(DOORBELL_VERSION);
         buf.extend_from_slice(&[0u8; 16]); // nonce
         buf.extend_from_slice(&0u64.to_be_bytes()); // timestamp
-        // no queue ID bytes — exactly 25 bytes total
+                                                    // no queue ID bytes — exactly 25 bytes total
         let result = DoorbellPing::from_bytes(&buf);
         assert!(result.is_err());
     }

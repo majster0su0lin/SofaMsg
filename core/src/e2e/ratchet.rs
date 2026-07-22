@@ -33,11 +33,11 @@ use aes_gcm::{
 };
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
-use sha2::Sha256;
-use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret as X25519StaticSecret};
 use rand_core::{OsRng, RngCore};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::collections::HashMap;
+use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret as X25519StaticSecret};
 
 /// Maximum number of message keys we're willing to skip and store.
 /// This bounds memory usage and prevents DoS from a peer claiming
@@ -90,7 +90,7 @@ pub struct EncryptedMessage {
 
 mod x25519_pubkey_serde {
     use super::*;
-    use serde::{Serializer, Deserializer, de};
+    use serde::{de, Deserializer, Serializer};
 
     pub fn serialize<S: Serializer>(key: &X25519PublicKey, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_bytes(key.as_bytes())
@@ -98,9 +98,9 @@ mod x25519_pubkey_serde {
 
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<X25519PublicKey, D::Error> {
         let bytes: Vec<u8> = de::Deserialize::deserialize(d)?;
-        let arr: [u8; 32] = bytes.try_into().map_err(|_| {
-            de::Error::custom("X25519 public key must be exactly 32 bytes")
-        })?;
+        let arr: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| de::Error::custom("X25519 public key must be exactly 32 bytes"))?;
         Ok(X25519PublicKey::from(arr))
     }
 }
@@ -161,10 +161,7 @@ impl RatchetState {
     ///
     /// Alice immediately performs a DH ratchet step to derive her first
     /// sending chain key, since she's the one sending the first message.
-    pub fn init_sender(
-        shared_secret: [u8; 32],
-        remote_dh_public: X25519PublicKey,
-    ) -> Self {
+    pub fn init_sender(shared_secret: [u8; 32], remote_dh_public: X25519PublicKey) -> Self {
         // Generate our first DH ratchet keypair.
         let dh_secret = X25519StaticSecret::random_from_rng(OsRng);
         let dh_public = X25519PublicKey::from(&dh_secret);
@@ -240,19 +237,22 @@ impl RatchetState {
         // Encrypt with AES-256-GCM.
         let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
-        let cipher = Aes256Gcm::new_from_slice(&message_key)
-            .expect("message key is always 32 bytes");
+        let cipher =
+            Aes256Gcm::new_from_slice(&message_key).expect("message key is always 32 bytes");
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         // We include the header as associated data (AD) so that tampering
         // with the header (e.g., changing message numbers) is also detected.
-        let header_bytes = serde_json::to_vec(&header)
-            .expect("header serialization should not fail");
+        let header_bytes =
+            serde_json::to_vec(&header).expect("header serialization should not fail");
         let ciphertext = cipher
-            .encrypt(nonce, aes_gcm::aead::Payload {
-                msg: plaintext,
-                aad: &header_bytes,
-            })
+            .encrypt(
+                nonce,
+                aes_gcm::aead::Payload {
+                    msg: plaintext,
+                    aad: &header_bytes,
+                },
+            )
             .expect("AES-256-GCM encryption should not fail");
 
         EncryptedMessage {
@@ -273,13 +273,16 @@ impl RatchetState {
     pub fn decrypt(&mut self, msg: &EncryptedMessage) -> Result<Vec<u8>, &'static str> {
         // Step 1: Check if we already have a skipped key for this message.
         let dh_bytes = *msg.header.dh_public_key.as_bytes();
-        if let Some(mk) = self.skipped_keys.remove(&(dh_bytes, msg.header.message_number)) {
+        if let Some(mk) = self
+            .skipped_keys
+            .remove(&(dh_bytes, msg.header.message_number))
+        {
             return decrypt_with_key(&mk, msg);
         }
 
         // Step 2: If the sender's DH key has changed, perform a DH ratchet step.
         let need_dh_ratchet = match &self.remote_dh_public {
-            None => true,  // First message from this peer.
+            None => true, // First message from this peer.
             Some(current) => current.as_bytes() != msg.header.dh_public_key.as_bytes(),
         };
 
@@ -414,19 +417,24 @@ fn kdf_ck(chain_key: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
 }
 
 /// Decrypt a message using a specific message key.
-fn decrypt_with_key(message_key: &[u8; 32], msg: &EncryptedMessage) -> Result<Vec<u8>, &'static str> {
-    let cipher =
-        Aes256Gcm::new_from_slice(message_key).expect("message key is always 32 bytes");
+fn decrypt_with_key(
+    message_key: &[u8; 32],
+    msg: &EncryptedMessage,
+) -> Result<Vec<u8>, &'static str> {
+    let cipher = Aes256Gcm::new_from_slice(message_key).expect("message key is always 32 bytes");
     let nonce = Nonce::from_slice(&msg.nonce);
 
-    let header_bytes = serde_json::to_vec(&msg.header)
-        .expect("header serialization should not fail");
+    let header_bytes =
+        serde_json::to_vec(&msg.header).expect("header serialization should not fail");
 
     cipher
-        .decrypt(nonce, aes_gcm::aead::Payload {
-            msg: &msg.ciphertext,
-            aad: &header_bytes,
-        })
+        .decrypt(
+            nonce,
+            aes_gcm::aead::Payload {
+                msg: &msg.ciphertext,
+                aad: &header_bytes,
+            },
+        )
         .map_err(|_| "AES-256-GCM authentication failed — message may have been tampered with")
 }
 
@@ -598,10 +606,7 @@ mod tests {
             e1.ciphertext, e2.ciphertext,
             "Each message must use a unique key+nonce"
         );
-        assert_ne!(
-            e1.nonce, e2.nonce,
-            "Each message must use a unique nonce"
-        );
+        assert_ne!(e1.nonce, e2.nonce, "Each message must use a unique nonce");
     }
 
     #[test]

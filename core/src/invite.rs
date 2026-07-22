@@ -21,7 +21,6 @@
 /// The `validate()` method re-derives the Account ID from the public key bytes
 /// to detect tampering — if someone modifies the public key in a shared link,
 /// the Account ID won't match and the invite is rejected.
-
 use sha2::{Digest, Sha256};
 
 /// The URI scheme used for SofaMsg invitation links.
@@ -77,10 +76,7 @@ pub enum InviteError {
     /// A field has an invalid value.
     InvalidField { field: String, reason: String },
     /// The Account ID doesn't match the public key (possible tampering).
-    AccountIdMismatch {
-        expected: String,
-        actual: String,
-    },
+    AccountIdMismatch { expected: String, actual: String },
     /// The binary payload is too short or malformed.
     MalformedBinary(String),
     /// The invitation uses an unsupported protocol version.
@@ -204,12 +200,10 @@ impl InvitePayload {
         let version_str = params
             .get("v")
             .ok_or_else(|| InviteError::MissingField("v (version)".into()))?;
-        let version: u8 = version_str
-            .parse()
-            .map_err(|_| InviteError::InvalidField {
-                field: "v".into(),
-                reason: format!("not a valid u8: '{version_str}'"),
-            })?;
+        let version: u8 = version_str.parse().map_err(|_| InviteError::InvalidField {
+            field: "v".into(),
+            reason: format!("not a valid u8: '{version_str}'"),
+        })?;
 
         if version != INVITE_VERSION {
             return Err(InviteError::UnsupportedVersion(version));
@@ -233,12 +227,13 @@ impl InvitePayload {
             .clone();
 
         // Validate that the base58 decodes to exactly 32 bytes
-        let key_bytes = bs58::decode(&public_key_b58)
-            .into_vec()
-            .map_err(|e| InviteError::InvalidField {
-                field: "key".into(),
-                reason: format!("invalid base58: {e}"),
-            })?;
+        let key_bytes =
+            bs58::decode(&public_key_b58)
+                .into_vec()
+                .map_err(|e| InviteError::InvalidField {
+                    field: "key".into(),
+                    reason: format!("invalid base58: {e}"),
+                })?;
         if key_bytes.len() != 32 {
             return Err(InviteError::InvalidField {
                 field: "key".into(),
@@ -252,12 +247,13 @@ impl InvitePayload {
             .clone();
 
         // Validate queue ID decodes to 32 bytes
-        let queue_bytes = bs58::decode(&queue_id_b58)
-            .into_vec()
-            .map_err(|e| InviteError::InvalidField {
-                field: "queue".into(),
-                reason: format!("invalid base58: {e}"),
-            })?;
+        let queue_bytes =
+            bs58::decode(&queue_id_b58)
+                .into_vec()
+                .map_err(|e| InviteError::InvalidField {
+                    field: "queue".into(),
+                    reason: format!("invalid base58: {e}"),
+                })?;
         if queue_bytes.len() != 32 {
             return Err(InviteError::InvalidField {
                 field: "queue".into(),
@@ -293,19 +289,20 @@ impl InvitePayload {
     /// Total: 66 bytes minimum (no name) to 321 bytes maximum (255-char name).
     /// A QR code can comfortably hold ~300 bytes in binary mode.
     pub fn to_qr_data(&self) -> Result<Vec<u8>, InviteError> {
-        let key_bytes = bs58::decode(&self.public_key_b58)
-            .into_vec()
-            .map_err(|e| InviteError::InvalidField {
+        let key_bytes = bs58::decode(&self.public_key_b58).into_vec().map_err(|e| {
+            InviteError::InvalidField {
                 field: "key".into(),
                 reason: format!("invalid base58: {e}"),
-            })?;
+            }
+        })?;
 
-        let queue_bytes = bs58::decode(&self.queue_id_b58)
-            .into_vec()
-            .map_err(|e| InviteError::InvalidField {
-                field: "queue".into(),
-                reason: format!("invalid base58: {e}"),
-            })?;
+        let queue_bytes =
+            bs58::decode(&self.queue_id_b58)
+                .into_vec()
+                .map_err(|e| InviteError::InvalidField {
+                    field: "queue".into(),
+                    reason: format!("invalid base58: {e}"),
+                })?;
 
         let name_bytes = self
             .display_name
@@ -365,16 +362,15 @@ impl InvitePayload {
         }
 
         let display_name = if name_len > 0 {
-            let name_str = std::str::from_utf8(&data[66..66 + name_len]).map_err(|e| {
-                InviteError::MalformedBinary(format!("invalid UTF-8 in name: {e}"))
-            })?;
+            let name_str = std::str::from_utf8(&data[66..66 + name_len])
+                .map_err(|e| InviteError::MalformedBinary(format!("invalid UTF-8 in name: {e}")))?;
             Some(name_str.to_string())
         } else {
             None
         };
 
         // Re-derive account ID from the key bytes (not transmitted in QR)
-        let hash = Sha256::digest(&key_bytes);
+        let hash = Sha256::digest(key_bytes);
         let account_id = format!("{}{}", ACCOUNT_ID_PREFIX, bs58::encode(hash).into_string());
 
         let public_key_b58 = bs58::encode(&key_bytes).into_string();
@@ -399,12 +395,12 @@ impl InvitePayload {
     /// Account ID doesn't match what the public key produces.
     pub fn validate(&self) -> Result<(), InviteError> {
         // Decode the public key from base58
-        let key_bytes = bs58::decode(&self.public_key_b58)
-            .into_vec()
-            .map_err(|e| InviteError::InvalidField {
+        let key_bytes = bs58::decode(&self.public_key_b58).into_vec().map_err(|e| {
+            InviteError::InvalidField {
                 field: "key".into(),
                 reason: format!("invalid base58: {e}"),
-            })?;
+            }
+        })?;
 
         if key_bytes.len() != 32 {
             return Err(InviteError::InvalidField {
@@ -454,10 +450,9 @@ impl InvitePayload {
         let mut i = 0;
         while i < bytes.len() {
             if bytes[i] == b'%' && i + 2 < bytes.len() {
-                if let Ok(val) = u8::from_str_radix(
-                    std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""),
-                    16,
-                ) {
+                if let Ok(val) =
+                    u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16)
+                {
                     decoded.push(val);
                     i += 3;
                     continue;
@@ -612,9 +607,7 @@ mod tests {
 
     #[test]
     fn uri_rejects_missing_key() {
-        let result = InvitePayload::from_uri(
-            "sofamsg://connect?v=1&id=sb_abc&queue=def"
-        );
+        let result = InvitePayload::from_uri("sofamsg://connect?v=1&id=sb_abc&queue=def");
         assert!(result.is_err());
         match result.unwrap_err() {
             InviteError::MissingField(f) => assert!(f.contains("key")),
@@ -624,9 +617,7 @@ mod tests {
 
     #[test]
     fn uri_rejects_missing_version() {
-        let result = InvitePayload::from_uri(
-            "sofamsg://connect?key=abc&queue=def&id=sb_abc"
-        );
+        let result = InvitePayload::from_uri("sofamsg://connect?key=abc&queue=def&id=sb_abc");
         assert!(result.is_err());
         match result.unwrap_err() {
             InviteError::MissingField(f) => assert!(f.contains("v")),

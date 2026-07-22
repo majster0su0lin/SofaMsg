@@ -35,18 +35,15 @@
 //! the recipient must detect the tampering rather than silently accepting
 //! corrupted plaintext. Hence: authenticated encryption (GCM).
 
-pub mod x3dh;
 pub mod ratchet;
 pub mod session;
+pub mod x3dh;
 
 // Re-export key types for convenience
-pub use x3dh::{
-    PreKeyBundle, X3dhInitiatorOutput, X3dhResponderOutput,
-    generate_signed_prekey, generate_one_time_prekey,
-    initiate_x3dh, respond_x3dh,
-    ed25519_signing_key_to_x25519,
-    ed25519_verifying_key_to_x25519,
-    SignedPreKey, OneTimePreKey,
-};
-pub use ratchet::{RatchetState, MessageHeader, EncryptedMessage};
+pub use ratchet::{EncryptedMessage, MessageHeader, RatchetState};
 pub use session::{Session, SessionManager};
+pub use x3dh::{
+    ed25519_signing_key_to_x25519, ed25519_verifying_key_to_x25519, generate_one_time_prekey,
+    generate_signed_prekey, initiate_x3dh, respond_x3dh, OneTimePreKey, PreKeyBundle, SignedPreKey,
+    X3dhInitiatorOutput, X3dhResponderOutput,
+};

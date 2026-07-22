@@ -10,8 +10,7 @@
 /// 4. B (once woken by the doorbell ping) queries the DHT for records
 ///    under their Queue ID, deserializes the envelope, decrypts, and
 ///    requests deletion of the record from the DHT.
-
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// A message envelope stored on the DHT.
 ///
@@ -49,10 +48,7 @@ pub const PROTOCOL_VERSION: u8 = 1;
 
 impl MessageEnvelope {
     /// Create a new message envelope.
-    pub fn new(
-        sender_queue_id: String,
-        ciphertext: Vec<u8>,
-    ) -> Self {
+    pub fn new(sender_queue_id: String, ciphertext: Vec<u8>) -> Self {
         // Generate a random message ID
         let mut id_bytes = [0u8; 16];
         use std::time::{SystemTime, UNIX_EPOCH};
@@ -100,7 +96,9 @@ pub struct QueuedMessages {
 
 impl QueuedMessages {
     pub fn new() -> Self {
-        QueuedMessages { envelopes: Vec::new() }
+        QueuedMessages {
+            envelopes: Vec::new(),
+        }
     }
 
     pub fn push(&mut self, envelope: MessageEnvelope) {
@@ -130,10 +128,8 @@ mod tests {
 
     #[test]
     fn envelope_round_trip() {
-        let env = MessageEnvelope::new(
-            "test_queue_id".to_string(),
-            b"encrypted data here".to_vec(),
-        );
+        let env =
+            MessageEnvelope::new("test_queue_id".to_string(), b"encrypted data here".to_vec());
 
         let bytes = env.to_bytes().unwrap();
         let recovered = MessageEnvelope::from_bytes(&bytes).unwrap();

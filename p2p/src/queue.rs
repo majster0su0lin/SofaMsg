@@ -9,8 +9,7 @@
 ///
 /// The domain separator ("sofamsg_queue_v1") ensures Queue IDs are
 /// distinct from Account IDs (which use a bare SHA-256 of the public key).
-
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 /// A Queue ID used as a DHT key for message storage and retrieval.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -95,8 +94,11 @@ mod tests {
 
         let queue = QueueId::from_public_key(&pubkey);
 
-        assert_ne!(account_id, queue.as_str(),
-            "Queue ID must differ from Account ID due to domain separator");
+        assert_ne!(
+            account_id,
+            queue.as_str(),
+            "Queue ID must differ from Account ID due to domain separator"
+        );
     }
 
     #[test]

@@ -18,11 +18,8 @@
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use std::collections::HashMap;
 
-use super::x3dh::{
-    PreKeyBundle, SignedPreKey, OneTimePreKey,
-    initiate_x3dh, respond_x3dh,
-};
-use super::ratchet::{RatchetState, EncryptedMessage};
+use super::ratchet::{EncryptedMessage, RatchetState};
+use super::x3dh::{initiate_x3dh, respond_x3dh, OneTimePreKey, PreKeyBundle, SignedPreKey};
 use x25519_dalek::PublicKey as X25519PublicKey;
 
 // ---------------------------------------------------------------------------
@@ -93,10 +90,8 @@ impl SessionManager {
     ) -> Result<X25519PublicKey, &'static str> {
         let x3dh_output = initiate_x3dh(&self.our_identity, peer_bundle)?;
 
-        let ratchet = RatchetState::init_sender(
-            x3dh_output.shared_secret,
-            peer_bundle.signed_prekey_public,
-        );
+        let ratchet =
+            RatchetState::init_sender(x3dh_output.shared_secret, peer_bundle.signed_prekey_public);
 
         let peer_id = peer_bundle.identity_key.to_bytes();
         self.sessions.insert(
@@ -222,7 +217,7 @@ impl SessionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::e2e::x3dh::{generate_signed_prekey, generate_one_time_prekey};
+    use crate::e2e::x3dh::{generate_one_time_prekey, generate_signed_prekey};
     use ed25519_dalek::SigningKey;
     use rand_core::OsRng;
 
@@ -271,9 +266,7 @@ mod tests {
         let encrypted = alice_mgr
             .encrypt(&alice_peer_id, b"Hello from Alice!")
             .unwrap();
-        let decrypted = bob_mgr
-            .decrypt(&bob_peer_id, &encrypted)
-            .unwrap();
+        let decrypted = bob_mgr.decrypt(&bob_peer_id, &encrypted).unwrap();
         assert_eq!(decrypted, b"Hello from Alice!");
     }
 
@@ -287,7 +280,10 @@ mod tests {
 
         // Bob → Alice
         let e2 = bob_mgr.encrypt(&bob_peer_id, b"Hey Alice").unwrap();
-        assert_eq!(alice_mgr.decrypt(&alice_peer_id, &e2).unwrap(), b"Hey Alice");
+        assert_eq!(
+            alice_mgr.decrypt(&alice_peer_id, &e2).unwrap(),
+            b"Hey Alice"
+        );
 
         // Alice → Bob again
         let e3 = alice_mgr.encrypt(&alice_peer_id, b"What's up?").unwrap();
@@ -329,8 +325,7 @@ mod tests {
         };
 
         // Alice runs X3DH.
-        let alice_x3dh = initiate_x3dh(&alice_signing, &bob_bundle)
-            .expect("X3DH should succeed");
+        let alice_x3dh = initiate_x3dh(&alice_signing, &bob_bundle).expect("X3DH should succeed");
 
         // Bob runs X3DH.
         let bob_x3dh = respond_x3dh(
@@ -345,10 +340,8 @@ mod tests {
         assert_eq!(alice_x3dh.shared_secret, bob_x3dh.shared_secret);
 
         // Initialize Double Ratchet.
-        let mut alice_ratchet = RatchetState::init_sender(
-            alice_x3dh.shared_secret,
-            bob_bundle.signed_prekey_public,
-        );
+        let mut alice_ratchet =
+            RatchetState::init_sender(alice_x3dh.shared_secret, bob_bundle.signed_prekey_public);
         let mut bob_ratchet = RatchetState::init_receiver(
             bob_x3dh.shared_secret,
             bob_spk.secret.clone(),
@@ -367,7 +360,8 @@ mod tests {
         for (alice_sends, text) in messages {
             if alice_sends {
                 let encrypted = alice_ratchet.encrypt(text.as_bytes());
-                let decrypted = bob_ratchet.decrypt(&encrypted)
+                let decrypted = bob_ratchet
+                    .decrypt(&encrypted)
                     .expect("Bob should decrypt Alice's message");
                 assert_eq!(
                     String::from_utf8(decrypted).unwrap(),
@@ -376,7 +370,8 @@ mod tests {
                 );
             } else {
                 let encrypted = bob_ratchet.encrypt(text.as_bytes());
-                let decrypted = alice_ratchet.decrypt(&encrypted)
+                let decrypted = alice_ratchet
+                    .decrypt(&encrypted)
                     .expect("Alice should decrypt Bob's message");
                 assert_eq!(
                     String::from_utf8(decrypted).unwrap(),

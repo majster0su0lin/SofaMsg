@@ -11,7 +11,10 @@ impl Keypair {
         let mut csprng = OsRng;
         let signing_key = SigningKey::generate(&mut csprng);
         let verifying_key = signing_key.verifying_key();
-        Keypair { signing_key, verifying_key }
+        Keypair {
+            signing_key,
+            verifying_key,
+        }
     }
 
     pub fn public_key_bytes(&self) -> [u8; 32] {

@@ -11,23 +11,13 @@
 /// - Putting messages onto the DHT (sending)
 /// - Getting messages from the DHT (receiving)
 /// - Removing delivered messages from the DHT
-
 use std::time::Duration;
 
-use libp2p::{
-    kad,
-    noise,
-    tcp,
-    yamux,
-    swarm::NetworkBehaviour,
-    Multiaddr,
-    PeerId,
-    Swarm,
-};
+use libp2p::{kad, noise, swarm::NetworkBehaviour, tcp, yamux, Multiaddr, PeerId, Swarm};
 use tokio::sync::mpsc;
 
-use crate::queue::QueueId;
 use crate::protocol::{MessageEnvelope, QueuedMessages};
+use crate::queue::QueueId;
 
 // ── Behaviour ────────────────────────────────────────────────
 
@@ -121,13 +111,9 @@ enum NodeCommand {
         envelope: MessageEnvelope,
     },
     /// Query the DHT for messages under our Queue ID.
-    GetMessages {
-        our_queue: QueueId,
-    },
+    GetMessages { our_queue: QueueId },
     /// Connect to a specific peer by address.
-    Dial {
-        addr: Multiaddr,
-    },
+    Dial { addr: Multiaddr },
     /// Shut down the node.
     Shutdown,
 }
@@ -153,32 +139,24 @@ impl SofaNode {
                 let peer_id = key.public().to_peer_id();
 
                 // Kademlia with in-memory store
-                let mut kad_config = kad::Config::new(
-                    libp2p::StreamProtocol::new("/sofamsg/kad/1.0.0"),
-                );
+                let mut kad_config =
+                    kad::Config::new(libp2p::StreamProtocol::new("/sofamsg/kad/1.0.0"));
                 kad_config.set_record_ttl(Some(Duration::from_secs(3600))); // 1 hour TTL
-                kad_config.set_replication_factor(
-                    std::num::NonZeroUsize::new(3).expect("3 > 0"),
-                );
+                kad_config.set_replication_factor(std::num::NonZeroUsize::new(3).expect("3 > 0"));
 
                 let store = kad::store::MemoryStore::new(peer_id);
                 let kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
 
                 // Identify
                 let identify = libp2p::identify::Behaviour::new(
-                    libp2p::identify::Config::new(
-                        "/sofamsg/id/1.0.0".to_string(),
-                        key.public(),
-                    )
-                    .with_push_listen_addr_updates(true),
+                    libp2p::identify::Config::new("/sofamsg/id/1.0.0".to_string(), key.public())
+                        .with_push_listen_addr_updates(true),
                 );
 
                 Ok(SofaBehaviour { kademlia, identify })
             })?
             .with_swarm_config(|cfg| {
-                cfg.with_idle_connection_timeout(
-                    Duration::from_secs(config.idle_timeout_secs),
-                )
+                cfg.with_idle_connection_timeout(Duration::from_secs(config.idle_timeout_secs))
             })
             .build();
 
@@ -218,10 +196,7 @@ impl SofaNode {
     }
 
     /// Check for incoming messages by querying the DHT for our Queue ID.
-    pub async fn check_messages(
-        &self,
-        our_queue: QueueId,
-    ) -> Result<(), String> {
+    pub async fn check_messages(&self, our_queue: QueueId) -> Result<(), String> {
         self.cmd_tx
             .send(NodeCommand::GetMessages { our_queue })
             .await
@@ -229,10 +204,7 @@ impl SofaNode {
     }
 
     /// Connect to a peer by multiaddress.
-    pub async fn dial(
-        &self,
-        addr: Multiaddr,
-    ) -> Result<(), String> {
+    pub async fn dial(&self, addr: Multiaddr) -> Result<(), String> {
         self.cmd_tx
             .send(NodeCommand::Dial { addr })
             .await
@@ -264,13 +236,18 @@ impl SofaNode {
             .expect("valid multiaddr");
 
         if let Err(e) = swarm.listen_on(listen_addr) {
-            let _ = event_tx.send(NodeEvent::Error(format!("Listen failed: {e}"))).await;
+            let _ = event_tx
+                .send(NodeEvent::Error(format!("Listen failed: {e}")))
+                .await;
             return;
         }
 
         // Add bootstrap peers to Kademlia routing table
         for (peer_id, addr) in &bootstrap_peers {
-            swarm.behaviour_mut().kademlia.add_address(peer_id, addr.clone());
+            swarm
+                .behaviour_mut()
+                .kademlia
+                .add_address(peer_id, addr.clone());
         }
 
         // Bootstrap the DHT if we have peers
@@ -354,69 +331,76 @@ impl SofaNode {
                     publisher: None,
                     expires: None,
                 };
-                if let Err(e) = swarm.behaviour_mut().kademlia.put_record(
-                    record,
-                    kad::Quorum::One,
-                ) {
-                    let _ = event_tx.send(
-                        NodeEvent::Error(format!("DHT put failed: {e}"))
-                    ).await;
+                if let Err(e) = swarm
+                    .behaviour_mut()
+                    .kademlia
+                    .put_record(record, kad::Quorum::One)
+                {
+                    let _ = event_tx
+                        .send(NodeEvent::Error(format!("DHT put failed: {e}")))
+                        .await;
                 } else {
-                    let _ = event_tx.send(
-                        NodeEvent::MessageStored { queue_id: queue_id_str }
-                    ).await;
+                    let _ = event_tx
+                        .send(NodeEvent::MessageStored {
+                            queue_id: queue_id_str,
+                        })
+                        .await;
                 }
             }
             Err(e) => {
-                let _ = event_tx.send(
-                    NodeEvent::Error(format!("Serialization failed: {e}"))
-                ).await;
+                let _ = event_tx
+                    .send(NodeEvent::Error(format!("Serialization failed: {e}")))
+                    .await;
             }
         }
     }
 
-    async fn handle_kad_event(
-        event: kad::Event,
-        event_tx: &mpsc::Sender<NodeEvent>,
-    ) {
+    async fn handle_kad_event(event: kad::Event, event_tx: &mpsc::Sender<NodeEvent>) {
         match event {
             kad::Event::OutboundQueryProgressed {
-                result: kad::QueryResult::GetRecord(Ok(
-                    kad::GetRecordOk::FoundRecord(peer_record),
-                )),
+                result: kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))),
                 ..
             } => {
                 // Deserialize the retrieved record
                 match QueuedMessages::from_bytes(&peer_record.record.value) {
                     Ok(queued) => {
-                        let _ = event_tx.send(NodeEvent::MessagesReceived {
-                            messages: queued.envelopes,
-                        }).await;
+                        let _ = event_tx
+                            .send(NodeEvent::MessagesReceived {
+                                messages: queued.envelopes,
+                            })
+                            .await;
                     }
                     Err(e) => {
-                        let _ = event_tx.send(NodeEvent::Error(
-                            format!("Failed to deserialize DHT record: {e}")
-                        )).await;
+                        let _ = event_tx
+                            .send(NodeEvent::Error(format!(
+                                "Failed to deserialize DHT record: {e}"
+                            )))
+                            .await;
                     }
                 }
             }
             kad::Event::OutboundQueryProgressed {
-                result: kad::QueryResult::GetRecord(Ok(
-                    kad::GetRecordOk::FinishedWithNoAdditionalRecord { .. },
-                )),
+                result:
+                    kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FinishedWithNoAdditionalRecord {
+                        ..
+                    })),
                 ..
             } => {
-                let _ = event_tx.send(NodeEvent::NoMessages {
-                    queue_id: "unknown".to_string(),
-                }).await;
+                let _ = event_tx
+                    .send(NodeEvent::NoMessages {
+                        queue_id: "unknown".to_string(),
+                    })
+                    .await;
             }
             kad::Event::OutboundQueryProgressed {
                 result: kad::QueryResult::GetRecord(Err(e)),
                 ..
             } => {
-                let _ = event_tx.send(NodeEvent::NoMessages {
-                    queue_id: format!("query error: {e:?}"),
-                }).await;
+                let _ = event_tx
+                    .send(NodeEvent::NoMessages {
+                        queue_id: format!("query error: {e:?}"),
+                    })
+                    .await;
             }
             _ => {} // Ignore other Kademlia events
         }

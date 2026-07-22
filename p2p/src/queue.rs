@@ -89,7 +89,7 @@ mod tests {
         // They MUST differ.
         let pubkey = [99u8; 32];
 
-        let account_hash = Sha256::digest(&pubkey);
+        let account_hash = Sha256::digest(pubkey);
         let account_id = bs58::encode(account_hash).into_string();
 
         let queue = QueueId::from_public_key(&pubkey);

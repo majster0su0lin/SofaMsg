@@ -499,7 +499,7 @@ mod tests {
         let invite = InvitePayload::new(&key, &queue, None);
 
         // Manually derive the expected account ID
-        let hash = Sha256::digest(&key);
+        let hash = Sha256::digest(key);
         let expected = format!("sb_{}", bs58::encode(hash).into_string());
         assert_eq!(invite.account_id, expected);
     }

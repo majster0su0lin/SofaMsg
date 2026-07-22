@@ -299,7 +299,7 @@ mod tests {
     fn delete_message_removes_specific_message() {
         let (conn, path) = setup_test_db("sofamsg_test_delete.db");
 
-        let id1 = insert_message(&conn, "sb_alice", "keep", 1000, true).unwrap();
+        let _id1 = insert_message(&conn, "sb_alice", "keep", 1000, true).unwrap();
         let id2 = insert_message(&conn, "sb_alice", "delete me", 1001, true).unwrap();
 
         assert!(delete_message(&conn, id2).unwrap());

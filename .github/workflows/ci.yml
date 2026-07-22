@@ -53,7 +53,7 @@ jobs:
         run: cargo test --workspace
 
       - name: Clippy lint (warnings are errors)
-        run: cargo clippy --workspace -- -D warnings
+        run: cargo clippy --all-targets --workspace -- -D warnings
 
       - name: Check formatting
         run: cargo fmt --check

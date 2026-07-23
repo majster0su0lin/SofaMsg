@@ -73,14 +73,23 @@ jobs:
           - target: aarch64-linux-android
             abi: arm64-v8a
             api: 21
+            cc_target: aarch64_linux_android
+            cc_prefix: aarch64-linux-android
+            openssl_target: android-arm64
             rustflags: ""
           - target: armv7-linux-androideabi
             abi: armeabi-v7a
             api: 24
+            cc_target: armv7_linux_androideabi
+            cc_prefix: armv7a-linux-androideabi
+            openssl_target: android-arm
             rustflags: "-C link-arg=-latomic"
           - target: x86_64-linux-android
             abi: x86_64
             api: 21
+            cc_target: x86_64_linux_android
+            cc_prefix: x86_64-linux-android
+            openssl_target: android-x86_64
             rustflags: ""
 
     steps:
@@ -91,11 +100,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsqlcipher-dev
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
@@ -129,7 +133,18 @@ jobs:
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          # Statically link OpenSSL — avoids runtime .so dependency
+          OPENSSL_STATIC: "1"
+          # Tell the cc crate + openssl-src where the NDK toolchain lives.
+          # openssl-src reads CC_<target> / AR_<target> to configure its
+          # own C build correctly for Android cross-compilation.
+          CC_${{ matrix.cc_target }}: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.cc_prefix }}${{ matrix.api }}-clang
+          AR_${{ matrix.cc_target }}: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+          RANLIB_${{ matrix.cc_target }}: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ranlib
         run: |
+          # Add NDK toolchain to PATH so openssl-src's Configure can
+          # locate clang, llvm-ar, llvm-ranlib by unqualified name.
+          export PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
           cargo ndk \
             -t ${{ matrix.abi }} \
             --platform ${{ matrix.api }} \

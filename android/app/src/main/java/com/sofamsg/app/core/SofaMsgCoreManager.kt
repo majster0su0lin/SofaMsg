@@ -52,14 +52,46 @@ class SofaMsgCoreManager(private val context: Context) {
 
     /**
      * Set up a new PIN on first launch.
+     *
+     * Removes any stale vault database files and generates a fresh salt
+     * before deriving the new key and creating the database schema.
      */
     fun setupPin(pin: String): Boolean {
-        val success = unlock(pin, isDuress = false)
-        if (success) {
+        return try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+            // Delete any existing/stale vault database files to start fresh
+            val dbFile = File(context.filesDir, DB_NAME)
+            val decoyDbFile = File(context.filesDir, "decoy_$DB_NAME")
+            if (dbFile.exists()) dbFile.delete()
+            if (decoyDbFile.exists()) decoyDbFile.delete()
+            File(context.filesDir, "$DB_NAME-journal").delete()
+            File(context.filesDir, "$DB_NAME-wal").delete()
+
+            // Generate a fresh 16-byte salt for the new PIN
+            val newSalt = ByteArray(16)
+            java.security.SecureRandom().nextBytes(newSalt)
+            val newSaltHex = bytesToHex(newSalt)
+            prefs.edit().putString(KEY_SALT, newSaltHex).apply()
+
+            // Derive key and initialize new vault database
+            val vaultKey = FfiVaultKey.derive(pin, newSalt)
+            dbFile.parentFile?.mkdirs()
+            val db = FfiDatabase.open(dbFile.absolutePath, vaultKey)
+            db.ensureSchema()
+
+            // Update active state and mark PIN as set
+            activeVaultKey = vaultKey
+            activeDb = db
+            isDuressMode = false
             prefs.edit().putBoolean(KEY_PIN_SET, true).apply()
+
+            Log.i(TAG, "Successfully initialized fresh vault database for new PIN")
+            true
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to setup new PIN vault: ${e.message}", e)
+            false
         }
-        return success
     }
 
     /**

@@ -24,7 +24,7 @@ android {
 
         // Only package ABIs we actually build native code for
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64"))
         }
     }
 
@@ -94,7 +94,7 @@ dependencies {
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
     // ── UniFFI runtime (must match the version used in the Rust crate) ──
-    implementation("net.java.dev.jna:jna:5.13.0@aar")
+    implementation("net.java.dev.jna:jna:5.13.0")
 
     // ── Testing ──
     testImplementation("junit:junit:4.13.2")

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 fun PinEntryScreen(
     onAuthenticated: (isDuress: Boolean) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var pin by remember { mutableStateOf("") }
     var pinVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -107,7 +108,7 @@ fun PinEntryScreen(
                 keyboardActions = KeyboardActions(
                     onDone = {
                         if (pin.length >= 4) {
-                            attemptUnlock(pin, onAuthenticated) { error ->
+                            attemptUnlock(context, pin, onAuthenticated) { error ->
                                 errorMessage = error
                             }
                         }
@@ -137,7 +138,6 @@ fun PinEntryScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // ── Unlock button ──
-            val context = androidx.compose.ui.platform.LocalContext.current
             Button(
                 onClick = {
                     if (pin.length >= 4) {

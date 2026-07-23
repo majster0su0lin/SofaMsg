@@ -155,7 +155,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jniLibs-${{ matrix.abi }}
-          path: target/jniLibs/${{ matrix.abi }}/libsilentbell_ffi.so
+          path: target/jniLibs/${{ matrix.abi }}/
           retention-days: 7
 
   # ── Job 3: Assemble Android APK ──────────────────────────────
@@ -193,21 +193,18 @@ jobs:
         with:
           name: jniLibs-arm64-v8a
           path: android/app/src/main/jniLibs/arm64-v8a/
-        continue-on-error: true
 
       - name: Download armeabi-v7a .so
         uses: actions/download-artifact@v4
         with:
           name: jniLibs-armeabi-v7a
           path: android/app/src/main/jniLibs/armeabi-v7a/
-        continue-on-error: true
 
       - name: Download x86_64 .so
         uses: actions/download-artifact@v4
         with:
           name: jniLibs-x86_64
           path: android/app/src/main/jniLibs/x86_64/
-        continue-on-error: true
 
       - name: Generate Gradle Wrapper
         working-directory: android

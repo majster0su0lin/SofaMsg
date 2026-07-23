@@ -93,13 +93,18 @@ fun PinEntryScreen(
             } else {
                 // Second step of setup — confirm matching PIN
                 if (pin == initialPin) {
-                    isLoading = true
-                    val success = coreManager.setupPin(pin)
-                    isLoading = false
-                    if (success) {
-                        onAuthenticated(false)
-                    } else {
-                        errorMessage = "Failed to initialize vault database"
+                    try {
+                        isLoading = true
+                        val success = coreManager.setupPin(pin)
+                        isLoading = false
+                        if (success) {
+                            onAuthenticated(false)
+                        } else {
+                            errorMessage = "Failed to initialize vault database"
+                        }
+                    } catch (e: Exception) {
+                        isLoading = false
+                        errorMessage = "Error initializing vault: ${e.message}"
                     }
                 } else {
                     errorMessage = "PINs do not match. Try again."
@@ -257,12 +262,16 @@ private fun attemptUnlock(
         onError("PIN must be at least 4 digits")
         return
     }
-    val isDuress = (pin == "9999")
-    val coreManager = com.sofamsg.app.core.SofaMsgCoreManager(context)
-    val success = coreManager.unlock(pin, isDuress)
-    if (success) {
-        onAuthenticated(isDuress)
-    } else {
-        onError("Failed to unlock vault")
+    try {
+        val isDuress = (pin == "9999")
+        val coreManager = com.sofamsg.app.core.SofaMsgCoreManager(context)
+        val success = coreManager.unlock(pin, isDuress)
+        if (success) {
+            onAuthenticated(isDuress)
+        } else {
+            onError("Failed to unlock vault. Incorrect PIN.")
+        }
+    } catch (e: Exception) {
+        onError("Unlock error: ${e.message}")
     }
 }

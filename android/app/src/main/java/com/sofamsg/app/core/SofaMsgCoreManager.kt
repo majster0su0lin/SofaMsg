@@ -26,21 +26,28 @@ class SofaMsgCoreManager(private val context: Context) {
         private const val KEY_SALT = "vault_salt"
         private const val KEY_PIN_SET = "is_pin_set"
         private const val KEY_IDENTITY_KEY = "identity_private_key_hex"
-    }
 
-    private var activeDb: FfiDatabase? = null
-    private var activeVaultKey: FfiVaultKey? = null
-    var isDuressMode: Boolean = false
-        private set
+        @Volatile
+        private var activeDb: FfiDatabase? = null
+        @Volatile
+        private var activeVaultKey: FfiVaultKey? = null
+        @Volatile
+        var isDuressMode: Boolean = false
+            private set
+    }
 
     /**
      * Check if a PIN has been created and the vault database initialized.
      */
     fun isPinSet(): Boolean {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val hasFlag = prefs.getBoolean(KEY_PIN_SET, false)
-        val dbExists = File(context.filesDir, DB_NAME).exists()
-        return hasFlag && dbExists
+        return try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val hasFlag = prefs.getBoolean(KEY_PIN_SET, false)
+            val dbExists = File(context.filesDir, DB_NAME).exists()
+            hasFlag && dbExists
+        } catch (e: Exception) {
+            false
+        }
     }
 
     /**
@@ -95,6 +102,7 @@ class SofaMsgCoreManager(private val context: Context) {
             isDuressMode = isDuress
 
             val dbFile = File(context.filesDir, if (isDuress) "decoy_$DB_NAME" else DB_NAME)
+            dbFile.parentFile?.mkdirs()
             val db = FfiDatabase.open(dbFile.absolutePath, vaultKey)
             db.ensureSchema()
             activeDb = db

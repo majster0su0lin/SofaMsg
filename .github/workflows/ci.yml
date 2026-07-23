@@ -67,14 +67,18 @@ jobs:
     needs: test
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: aarch64-linux-android
             abi: arm64-v8a
+            api: 21
           - target: armv7-linux-androideabi
             abi: armeabi-v7a
+            api: 24
           - target: x86_64-linux-android
             abi: x86_64
+            api: 21
 
     steps:
       - name: Checkout repository
@@ -116,10 +120,12 @@ jobs:
             ${{ runner.os }}-android-${{ matrix.target }}-
 
       - name: Cross-compile FFI crate
+        env:
+          RUSTFLAGS: "-C link-arg=-latomic"
         run: |
           cargo ndk \
             -t ${{ matrix.abi }} \
-            -p 21 \
+            -p ${{ matrix.api }} \
             build --release --package silentbell_ffi
 
       - name: Upload native library
@@ -135,6 +141,7 @@ jobs:
     name: Build Debug APK
     runs-on: ubuntu-latest
     needs: build-android
+    if: always()
 
     steps:
       - name: Checkout repository
@@ -156,18 +163,21 @@ jobs:
         with:
           name: jniLibs-arm64-v8a
           path: android/app/src/main/jniLibs/arm64-v8a/
+        continue-on-error: true
 
       - name: Download armeabi-v7a .so
         uses: actions/download-artifact@v4
         with:
           name: jniLibs-armeabi-v7a
           path: android/app/src/main/jniLibs/armeabi-v7a/
+        continue-on-error: true
 
       - name: Download x86_64 .so
         uses: actions/download-artifact@v4
         with:
           name: jniLibs-x86_64
           path: android/app/src/main/jniLibs/x86_64/
+        continue-on-error: true
 
       - name: Build debug APK
         working-directory: android

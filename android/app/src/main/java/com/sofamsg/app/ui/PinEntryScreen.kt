@@ -18,6 +18,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * PIN Entry & Setup Screen — shown on app launch.
@@ -35,6 +38,9 @@ import androidx.compose.ui.unit.dp
  * configured, it automatically switches to Setup Mode so the user is never
  * locked out.
  *
+ * All PIN derivation (Argon2id) and database initialization operations run on
+ * Dispatchers.IO to prevent main thread looper stalls.
+ *
  * @param onAuthenticated Called when PIN validation or setup succeeds.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +49,7 @@ fun PinEntryScreen(
     onAuthenticated: (isDuress: Boolean) -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val coreManager = remember { com.sofamsg.app.core.SofaMsgCoreManager(context) }
 
     // Check whether a PIN has been set
@@ -81,6 +88,8 @@ fun PinEntryScreen(
     }
 
     val submitAction: () -> Unit = {
+        if (isLoading) return@submitAction
+
         if (pin.length < 4) {
             errorMessage = "PIN must be at least 4 digits"
         } else if (isSetupMode) {
@@ -93,18 +102,28 @@ fun PinEntryScreen(
             } else {
                 // Second step of setup — confirm matching PIN
                 if (pin == initialPin) {
-                    try {
-                        isLoading = true
-                        val success = coreManager.setupPin(pin)
-                        isLoading = false
-                        if (success) {
-                            onAuthenticated(false)
-                        } else {
-                            errorMessage = "Failed to initialize vault database"
+                    val confirmedPin = pin
+                    isLoading = true
+                    errorMessage = null
+                    coroutineScope.launch {
+                        try {
+                            val success = withContext(Dispatchers.IO) {
+                                coreManager.setupPin(confirmedPin)
+                            }
+                            withContext(Dispatchers.Main) {
+                                if (success) {
+                                    onAuthenticated(false)
+                                } else {
+                                    isLoading = false
+                                    errorMessage = "Failed to initialize vault database"
+                                }
+                            }
+                        } catch (e: Throwable) {
+                            withContext(Dispatchers.Main) {
+                                isLoading = false
+                                errorMessage = "Error initializing vault: ${e.message}"
+                            }
                         }
-                    } catch (e: Throwable) {
-                        isLoading = false
-                        errorMessage = "Error initializing vault: ${e.message}"
                     }
                 } else {
                     errorMessage = "PINs do not match. Try again."
@@ -121,8 +140,29 @@ fun PinEntryScreen(
                 pin = ""
                 errorMessage = "No PIN configured. Create a new PIN."
             } else {
-                attemptUnlock(context, pin, onAuthenticated) { error ->
-                    errorMessage = error
+                val enteredPin = pin
+                isLoading = true
+                errorMessage = null
+                coroutineScope.launch {
+                    try {
+                        val isDuress = (enteredPin == "9999")
+                        val success = withContext(Dispatchers.IO) {
+                            coreManager.unlock(enteredPin, isDuress)
+                        }
+                        withContext(Dispatchers.Main) {
+                            if (success) {
+                                onAuthenticated(isDuress)
+                            } else {
+                                isLoading = false
+                                errorMessage = "Failed to unlock vault. Incorrect PIN."
+                            }
+                        }
+                    } catch (e: Throwable) {
+                        withContext(Dispatchers.Main) {
+                            isLoading = false
+                            errorMessage = "Unlock error: ${e.message}"
+                        }
+                    }
                 }
             }
         }
@@ -246,32 +286,5 @@ fun PinEntryScreen(
                 textAlign = TextAlign.Center
             )
         }
-    }
-}
-
-/**
- * Attempt to unlock the vault with the given PIN via silentbell_core.
- */
-private fun attemptUnlock(
-    context: android.content.Context,
-    pin: String,
-    onAuthenticated: (isDuress: Boolean) -> Unit,
-    onError: (String) -> Unit
-) {
-    if (pin.length < 4) {
-        onError("PIN must be at least 4 digits")
-        return
-    }
-    try {
-        val isDuress = (pin == "9999")
-        val coreManager = com.sofamsg.app.core.SofaMsgCoreManager(context)
-        val success = coreManager.unlock(pin, isDuress)
-        if (success) {
-            onAuthenticated(isDuress)
-        } else {
-            onError("Failed to unlock vault. Incorrect PIN.")
-        }
-    } catch (e: Throwable) {
-        onError("Unlock error: ${e.message}")
     }
 }

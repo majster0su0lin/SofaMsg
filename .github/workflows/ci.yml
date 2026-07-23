@@ -100,18 +100,11 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
-      - name: Set up Android SDK
+      - name: Set up Android SDK & NDK
         uses: android-actions/setup-android@v3
         with:
           accept-android-sdk-licenses: true
-
-      - name: Set ANDROID_NDK_HOME
-        run: |
-          if [ -n "$ANDROID_NDK_LATEST_HOME" ]; then
-            echo "ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
-          else
-            echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk-bundle" >> $GITHUB_ENV
-          fi
+          ndk-version: '26.1.10909125'
 
       - name: Cache cargo registry & build artifacts
         uses: actions/cache@v4
@@ -184,6 +177,10 @@ jobs:
           name: jniLibs-x86_64
           path: android/app/src/main/jniLibs/x86_64/
         continue-on-error: true
+
+      - name: Generate Gradle Wrapper
+        working-directory: android
+        run: gradle wrapper --gradle-version 8.5
 
       - name: Build debug APK
         working-directory: android

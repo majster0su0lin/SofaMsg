@@ -132,7 +132,7 @@ jobs:
         run: |
           cargo ndk \
             -t ${{ matrix.abi }} \
-            -p ${{ matrix.api }} \
+            --platform ${{ matrix.api }} \
             -o target/jniLibs \
             build --release --package silentbell_ffi
 

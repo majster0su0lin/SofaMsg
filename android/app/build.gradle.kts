@@ -95,7 +95,7 @@ dependencies {
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
     // ── UniFFI runtime (must match the version used in the Rust crate) ──
-    implementation("net.java.dev.jna:jna:5.13.0")
+    implementation("net.java.dev.jna:jna:5.13.0@aar")
 
     // ── Testing ──
     testImplementation("junit:junit:4.13.2")

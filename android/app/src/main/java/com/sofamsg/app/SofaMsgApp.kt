@@ -39,6 +39,7 @@ class SofaMsgApp : Application() {
             val nativeDir = applicationInfo.nativeLibraryDir
             if (!nativeDir.isNullOrEmpty()) {
                 System.setProperty("jna.library.path", nativeDir)
+                System.setProperty("jna.boot.library.path", nativeDir)
             }
             System.loadLibrary("silentbell_ffi")
             nativeLibLoaded = true

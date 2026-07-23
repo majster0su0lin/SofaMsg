@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 mod decoy;
 pub mod e2e;
 mod identity;

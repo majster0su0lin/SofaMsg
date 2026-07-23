@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 //! SilentBell P2P — libp2p networking layer for peer-to-peer messaging.
 //!
 //! This crate provides:

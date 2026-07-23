@@ -73,12 +73,15 @@ jobs:
           - target: aarch64-linux-android
             abi: arm64-v8a
             api: 21
+            rustflags: ""
           - target: armv7-linux-androideabi
             abi: armeabi-v7a
             api: 24
+            rustflags: "-C link-arg=-latomic"
           - target: x86_64-linux-android
             abi: x86_64
             api: 21
+            rustflags: ""
 
     steps:
       - name: Checkout repository
@@ -97,16 +100,18 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
-      - name: Set up Android NDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           accept-android-sdk-licenses: true
 
-      - name: Install Android NDK via sdkmanager
-        run: sdkmanager "ndk;26.1.10909125"
-
       - name: Set ANDROID_NDK_HOME
-        run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+        run: |
+          if [ -n "$ANDROID_NDK_LATEST_HOME" ]; then
+            echo "ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          else
+            echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk-bundle" >> $GITHUB_ENV
+          fi
 
       - name: Cache cargo registry & build artifacts
         uses: actions/cache@v4
@@ -121,18 +126,19 @@ jobs:
 
       - name: Cross-compile FFI crate
         env:
-          RUSTFLAGS: "-C link-arg=-latomic"
+          RUSTFLAGS: ${{ matrix.rustflags }}
         run: |
           cargo ndk \
             -t ${{ matrix.abi }} \
             -p ${{ matrix.api }} \
+            -o target/jniLibs \
             build --release --package silentbell_ffi
 
       - name: Upload native library
         uses: actions/upload-artifact@v4
         with:
           name: jniLibs-${{ matrix.abi }}
-          path: target/${{ matrix.target }}/release/libsilentbell_ffi.so
+          path: target/jniLibs/${{ matrix.abi }}/libsilentbell_ffi.so
           retention-days: 7
 
   # ── Job 3: Assemble Android APK ──────────────────────────────

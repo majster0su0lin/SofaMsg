@@ -170,6 +170,8 @@ jobs:
       # the bare 'gradle' CLI is NOT available on ubuntu-latest.
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
 
       - name: Download arm64-v8a .so
         uses: actions/download-artifact@v4

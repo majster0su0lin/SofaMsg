@@ -139,7 +139,7 @@ fun ConversationListScreen(
                         conversation = conversation,
                         onClick = { onConversationClick(conversation.peerId) }
                     )
-                    HorizontalDivider(
+                    Divider(
                         modifier = Modifier.padding(start = 72.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )

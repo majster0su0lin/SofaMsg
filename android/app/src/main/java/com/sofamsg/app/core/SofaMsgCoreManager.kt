@@ -52,11 +52,9 @@ class SofaMsgCoreManager(private val context: Context) {
 
     /**
      * Set up a new PIN on first launch.
-     *
-     * Removes any stale vault database files and generates a fresh salt
-     * before deriving the new key and creating the database schema.
+     * Returns null on success, or the detailed exception string on failure.
      */
-    fun setupPin(pin: String): Boolean {
+    fun setupPinWithDetail(pin: String): String? {
         return try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -87,12 +85,14 @@ class SofaMsgCoreManager(private val context: Context) {
             prefs.edit().putBoolean(KEY_PIN_SET, true).apply()
 
             Log.i(TAG, "Successfully initialized fresh vault database for new PIN")
-            true
+            null
         } catch (e: Throwable) {
             Log.e(TAG, "Failed to setup new PIN vault: ${e.message}", e)
-            false
+            "Setup Error [${e.javaClass.simpleName}]: ${e.message ?: e.toString()}"
         }
     }
+
+    fun setupPin(pin: String): Boolean = setupPinWithDetail(pin) == null
 
     /**
      * Get or create a 16-byte random salt for Argon2id PIN derivation.
@@ -119,14 +119,9 @@ class SofaMsgCoreManager(private val context: Context) {
 
     /**
      * Unlock the application with the user's PIN.
-     *
-     * Derives the vault key using Argon2id, opens the SQLCipher database,
-     * and sets up the schema.
-     *
-     * @param pin The 4–8 digit user PIN
-     * @param isDuress If true, unlocks in duress decoy mode
+     * Returns null on success, or the detailed exception string on failure.
      */
-    fun unlock(pin: String, isDuress: Boolean = false): Boolean {
+    fun unlockWithDetail(pin: String, isDuress: Boolean = false): String? {
         return try {
             val salt = getOrCreateSalt()
             val vaultKey = FfiVaultKey.derive(pin, salt)
@@ -164,12 +159,14 @@ class SofaMsgCoreManager(private val context: Context) {
             }
 
             Log.i(TAG, "Successfully unlocked vault (isDuress=$isDuress)")
-            true
+            null
         } catch (e: Throwable) {
             Log.e(TAG, "Failed to unlock vault: ${e.message}", e)
-            false
+            "Unlock Error [${e.javaClass.simpleName}]: ${e.message ?: e.toString()}"
         }
     }
+
+    fun unlock(pin: String, isDuress: Boolean = false): Boolean = unlockWithDetail(pin, isDuress) == null
 
     /**
      * Get recent conversations from the unlocked database.

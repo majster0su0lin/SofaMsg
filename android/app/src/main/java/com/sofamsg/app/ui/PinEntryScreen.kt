@@ -107,21 +107,21 @@ fun PinEntryScreen(
                     errorMessage = null
                     coroutineScope.launch {
                         try {
-                            val success = withContext(Dispatchers.IO) {
-                                coreManager.setupPin(confirmedPin)
+                            val errDetail = withContext(Dispatchers.IO) {
+                                coreManager.setupPinWithDetail(confirmedPin)
                             }
                             withContext(Dispatchers.Main) {
-                                if (success) {
+                                if (errDetail == null) {
                                     onAuthenticated(false)
                                 } else {
                                     isLoading = false
-                                    errorMessage = "Failed to initialize vault database"
+                                    errorMessage = errDetail
                                 }
                             }
                         } catch (e: Throwable) {
                             withContext(Dispatchers.Main) {
                                 isLoading = false
-                                errorMessage = "Error initializing vault: ${e.message}"
+                                errorMessage = "Error [${e.javaClass.simpleName}]: ${e.message ?: e.toString()}"
                             }
                         }
                     }
@@ -146,21 +146,21 @@ fun PinEntryScreen(
                 coroutineScope.launch {
                     try {
                         val isDuress = (enteredPin == "9999")
-                        val success = withContext(Dispatchers.IO) {
-                            coreManager.unlock(enteredPin, isDuress)
+                        val errDetail = withContext(Dispatchers.IO) {
+                            coreManager.unlockWithDetail(enteredPin, isDuress)
                         }
                         withContext(Dispatchers.Main) {
-                            if (success) {
+                            if (errDetail == null) {
                                 onAuthenticated(isDuress)
                             } else {
                                 isLoading = false
-                                errorMessage = "Failed to unlock vault. Incorrect PIN."
+                                errorMessage = errDetail
                             }
                         }
                     } catch (e: Throwable) {
                         withContext(Dispatchers.Main) {
                             isLoading = false
-                            errorMessage = "Unlock error: ${e.message}"
+                            errorMessage = "Unlock Error [${e.javaClass.simpleName}]: ${e.message ?: e.toString()}"
                         }
                     }
                 }

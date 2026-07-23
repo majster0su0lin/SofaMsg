@@ -24,6 +24,7 @@ class SofaMsgCoreManager(private val context: Context) {
         private const val DB_NAME = "sofamsg_vault.db"
         private const val PREFS_NAME = "sofamsg_prefs"
         private const val KEY_SALT = "vault_salt"
+        private const val KEY_PIN_SET = "is_pin_set"
         private const val KEY_IDENTITY_KEY = "identity_private_key_hex"
     }
 
@@ -31,6 +32,28 @@ class SofaMsgCoreManager(private val context: Context) {
     private var activeVaultKey: FfiVaultKey? = null
     var isDuressMode: Boolean = false
         private set
+
+    /**
+     * Check if a PIN has been created and the vault database initialized.
+     */
+    fun isPinSet(): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val hasFlag = prefs.getBoolean(KEY_PIN_SET, false)
+        val dbExists = File(context.filesDir, DB_NAME).exists()
+        return hasFlag && dbExists
+    }
+
+    /**
+     * Set up a new PIN on first launch.
+     */
+    fun setupPin(pin: String): Boolean {
+        val success = unlock(pin, isDuress = false)
+        if (success) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putBoolean(KEY_PIN_SET, true).apply()
+        }
+        return success
+    }
 
     /**
      * Get or create a 16-byte random salt for Argon2id PIN derivation.
@@ -75,6 +98,11 @@ class SofaMsgCoreManager(private val context: Context) {
             val db = FfiDatabase.open(dbFile.absolutePath, vaultKey)
             db.ensureSchema()
             activeDb = db
+
+            if (!isDuress) {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit().putBoolean(KEY_PIN_SET, true).apply()
+            }
 
             if (isDuress) {
                 // Seed decoy conversations into decoy database if empty

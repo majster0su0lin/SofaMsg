@@ -87,7 +87,7 @@ fun PinEntryScreen(
         else -> "Unlock"
     }
 
-    val submitAction: () -> Unit = {
+    val submitAction: () -> Unit = submitAction@{
         if (isLoading) return@submitAction
 
         if (pin.length < 4) {

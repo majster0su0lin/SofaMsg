@@ -146,11 +146,13 @@ pub struct FfiDatabase {
 impl FfiDatabase {
     /// Open (or create) an encrypted database at `path`.
     pub fn open(path: String, key: Arc<FfiVaultKey>) -> Result<Self, SofaMsgError> {
-        let conn = silentbell_core::open_encrypted_db(&path, &key.inner)
-            .map_err(|err| {
-                eprintln!("[silentbell_ffi] open_encrypted_db failed for path '{}': {:?}", path, err);
-                SofaMsgError::DatabaseOpenFailed
-            })?;
+        let conn = silentbell_core::open_encrypted_db(&path, &key.inner).map_err(|err| {
+            eprintln!(
+                "[silentbell_ffi] open_encrypted_db failed for path '{}': {:?}",
+                path, err
+            );
+            SofaMsgError::DatabaseOpenFailed
+        })?;
         Ok(FfiDatabase {
             conn: std::sync::Mutex::new(conn),
         })

@@ -27,7 +27,7 @@ hex = "0.4"
 thiserror = "1"
 
 # ── SQLite (for Connection type in FfiDatabase) ──
-rusqlite = { version = "0.31", features = ["bundled-sqlcipher"] }
+rusqlite = { version = "0.31", features = ["bundled-sqlcipher-vendored-openssl"] }
 
 [build-dependencies]
 # UniFFI build-time code generator — reads the .udl file and emits

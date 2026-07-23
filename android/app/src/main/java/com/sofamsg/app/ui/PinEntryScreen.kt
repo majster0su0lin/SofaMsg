@@ -102,7 +102,7 @@ fun PinEntryScreen(
                         } else {
                             errorMessage = "Failed to initialize vault database"
                         }
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         isLoading = false
                         errorMessage = "Error initializing vault: ${e.message}"
                     }
@@ -271,7 +271,7 @@ private fun attemptUnlock(
         } else {
             onError("Failed to unlock vault. Incorrect PIN.")
         }
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         onError("Unlock error: ${e.message}")
     }
 }

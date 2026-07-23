@@ -45,7 +45,7 @@ class SofaMsgCoreManager(private val context: Context) {
             val hasFlag = prefs.getBoolean(KEY_PIN_SET, false)
             val dbExists = File(context.filesDir, DB_NAME).exists()
             hasFlag && dbExists
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             false
         }
     }
@@ -133,7 +133,7 @@ class SofaMsgCoreManager(private val context: Context) {
 
             Log.i(TAG, "Successfully unlocked vault (isDuress=$isDuress)")
             true
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to unlock vault: ${e.message}", e)
             false
         }
@@ -146,7 +146,7 @@ class SofaMsgCoreManager(private val context: Context) {
         val db = activeDb ?: return emptyList()
         return try {
             db.getRecentConversations(limit.toUInt())
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to fetch conversations: ${e.message}")
             emptyList()
         }
@@ -159,7 +159,7 @@ class SofaMsgCoreManager(private val context: Context) {
         val db = activeDb ?: return emptyList()
         return try {
             db.getMessages(peerAccountId)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to fetch messages: ${e.message}")
             emptyList()
         }
@@ -173,7 +173,7 @@ class SofaMsgCoreManager(private val context: Context) {
         return try {
             val now = System.currentTimeMillis() / 1000
             db.insertMessage(peerAccountId, body, now, isOutgoing)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to save message: ${e.message}")
             -1
         }
@@ -191,7 +191,7 @@ class SofaMsgCoreManager(private val context: Context) {
 
             val payload = createInvite(pubKeyBytes, queueIdBytes, displayName)
             inviteToUri(payload)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to create invitation: ${e.message}")
             null
         }
@@ -209,7 +209,7 @@ class SofaMsgCoreManager(private val context: Context) {
                 Log.w(TAG, "Invitation validation failed (account ID mismatch)")
                 null
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to parse invitation: ${e.message}")
             null
         }
